@@ -21,7 +21,7 @@ import "ds-test/test.sol";
 import "./proxy.sol";
 
 // Test Contract Used
-contract TestContract {
+contract TestProxyActions {
     function getBytes32() public pure returns (bytes32) {
         return bytes32("Hello");
     }
@@ -48,7 +48,7 @@ contract TestContract {
     }
 }
 
-contract TestFullAssemblyContract {
+contract TestProxyActionsFullAssembly {
     fallback() external {
         assembly {
             let message := mload(0x40)
@@ -58,7 +58,7 @@ contract TestFullAssemblyContract {
     }
 }
 
-contract WithdrawFunds {
+contract TestProxyActionsWithdrawFunds {
     function withdraw(uint256 amount) public {
         msg.sender.transfer(amount);
     }
@@ -118,10 +118,10 @@ contract ProxyTest is DSTest {
     function test_ProxyExecute() public {
         bytes memory data = abi.encodeWithSignature("getBytes32()");
 
-        address testContract = address(new TestContract());
+        address proxyActions = address(new TestProxyActions());
 
         //deploy and call the contracts code
-        bytes memory response = proxy.execute(testContract, data);
+        bytes memory response = proxy.execute(proxyActions, data);
 
         bytes32 response32;
 
@@ -137,10 +137,10 @@ contract ProxyTest is DSTest {
     function test_ProxyExecute2Values() public {
         bytes memory data = abi.encodeWithSignature("getBytes32AndUint()");
 
-        address testContract = address(new TestContract());
+        address proxyActions = address(new TestProxyActions());
 
         //deploy and call the contracts code
-        bytes memory response = proxy.execute(testContract, data);
+        bytes memory response = proxy.execute(proxyActions, data);
 
         bytes32 response32;
         uint responseUint;
@@ -159,10 +159,10 @@ contract ProxyTest is DSTest {
     function test_ProxyExecuteMultipleValues() public {
         bytes memory data = abi.encodeWithSignature("getMultipleValues(uint256)", 10000);
 
-        address testContract = address(new TestContract());
+        address proxyActions = address(new TestProxyActions());
 
         //deploy and call the contracts code
-        bytes memory response = proxy.execute(testContract, data);
+        bytes memory response = proxy.execute(proxyActions, data);
 
         uint size;
         bytes32 response32;
@@ -185,10 +185,10 @@ contract ProxyTest is DSTest {
     function test_ProxyExecuteNot32Multiple() public {
         bytes memory data = abi.encodeWithSignature("get48Bytes()");
 
-        address testContract = address(new TestContract());
+        address proxyActions = address(new TestProxyActions());
 
         //deploy and call the contracts code
-        bytes memory response = proxy.execute(testContract, data);
+        bytes memory response = proxy.execute(proxyActions, data);
 
         bytes memory test = new bytes(48);
         test = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
@@ -199,8 +199,8 @@ contract ProxyTest is DSTest {
     // execute an action through proxy which reverts via solidity require
     function test_ProxyExecuteFailMethod() public {
         address payable target = address(proxy);
-        address testContract = address(new TestContract());
-        bytes memory data = abi.encodeWithSignature("execute(address,bytes)", bytes32(uint(address(testContract))), abi.encodeWithSignature("fail()"));
+        address proxyActions = address(new TestProxyActions());
+        bytes memory data = abi.encodeWithSignature("execute(address,bytes)", bytes32(uint(address(proxyActions))), abi.encodeWithSignature("fail()"));
 
         bool succeeded;
         bytes memory sig;
@@ -236,8 +236,8 @@ contract ProxyTest is DSTest {
     // execute an action through proxy which reverts via a pure assembly function
     function test_ProxyExecuteFailMethodAssembly() public {
         address payable target = address(proxy);
-        address testContract = address(new TestFullAssemblyContract());
-        bytes memory data = abi.encodeWithSignature("execute(address,bytes)", bytes32(uint(address(testContract))), hex"");
+        address proxyActions = address(new TestProxyActionsFullAssembly());
+        bytes memory data = abi.encodeWithSignature("execute(address,bytes)", bytes32(uint(address(proxyActions))), hex"");
 
         bool succeeded;
         bytes memory response;
@@ -270,7 +270,7 @@ contract ProxyTest is DSTest {
         assertTrue(success);
         assertEq(address(proxy).balance, 10);
         uint256 myBalance = address(this).balance;
-        address withdrawFunds = address(new WithdrawFunds());
+        address withdrawFunds = address(new TestProxyActionsWithdrawFunds());
         bytes memory data = abi.encodeWithSignature("withdraw(uint256)", 5);
         proxy.execute(withdrawFunds, data);
         assertEq(address(proxy).balance, 5);
