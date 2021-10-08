@@ -64,29 +64,24 @@ contract WithdrawFunds {
     }
 }
 
-contract DSProxyTest is DSTest {
-    DSProxyFactory factory;
-    DSProxyCache cache;
-    DSProxy proxy;
-
-    bytes testCode = hex"608060405234801561001057600080fd5b506103da806100206000396000f30060806040526004361061006d576000357c0100000000000000000000000000000000000000000000000000000000900463ffffffff1680631f903037146100725780635f7a3d16146100a55780638583cc0b14610127578063a9cc471814610161578063aa4025cc14610178575b600080fd5b34801561007e57600080fd5b50610087610208565b60405180826000191660001916815260200191505060405180910390f35b3480156100b157600080fd5b506100d060048036038101908080359060200190929190505050610230565b6040518080602001828103825283818151815260200191508051906020019060200280838360005b838110156101135780820151818401526020810190506100f8565b505050509050019250505060405180910390f35b34801561013357600080fd5b5061013c6102b0565b6040518083600019166000191681526020018281526020019250505060405180910390f35b34801561016d57600080fd5b506101766102e1565b005b34801561018457600080fd5b5061018d610359565b6040518080602001828103825283818151815260200191508051906020019080838360005b838110156101cd5780820151818401526020810190506101b2565b50505050905090810190601f1680156101fa5780820380516001836020036101000a031916815260200191505b509250505060405180910390f35b60007f48656c6c6f000000000000000000000000000000000000000000000000000000905090565b60606000826040519080825280602002602001820160405280156102635781602001602082028038833980820191505090505b509150600090505b828110156102aa5780600102828281518110151561028557fe5b906020019060200201906000191690816000191681525050808060010191505061026b565b50919050565b6000807f42796500000000000000000000000000000000000000000000000000000000006096809050915091509091565b60001515610357576040517f08c379a000000000000000000000000000000000000000000000000000000000815260040180806020018281038252600e8152602001807f4661696c2074657374206361736500000000000000000000000000000000000081525060200191505060405180910390fd5b565b606060405190507f414141414141414141414141414141414141414141414141414141414141414181527f41414141414141414141414141414141000000000000000000000000000000006020820152603081f300a165627a7a72305820e929b77ffa3b36f7f7ea1d39bee3c7fa4a921b5bf4d14e9db75e23b8d209fb8c0029";
+contract ProxyTest is DSTest {
+    ProxyFactory factory;
+    Proxy proxy;
 
     function setUp() public {
-        factory = new DSProxyFactory();
-        cache = new DSProxyCache();
-        proxy = new DSProxy(address(cache));
+        factory = new ProxyFactory();
+        assertEq(factory.owner(), address(this));
+        proxy = Proxy(factory.build());
     }
 
-    ///test1 - check that DSProxyFactory creates a cache
-    function test_DSProxyFactoryCheckCache() public {
-        assertTrue(factory.cache.address != address(0));
-    }
-
-    ///test 2 - build a proxy from DSProxyFactory and verify logging
-    function test_DSProxyFactoryBuildProc() public {
+    // build a proxy from ProxyFactory and verify logging
+    function test_ProxyFactoryBuildProc() public {
         address payable proxyAddr = factory.build();
         assertTrue(proxyAddr != address(0));
-        proxy = DSProxy(proxyAddr);
+        proxy = Proxy(proxyAddr);
+
+        assertEq(proxy.owner(), address(this));
+        assertEq(proxy.factory(), address(factory));
 
         uint codeSize;
         assembly {
@@ -94,69 +89,39 @@ contract DSProxyTest is DSTest {
         }
         //verify proxy was deployed successfully
         assertTrue(codeSize != 0);
-
-        //verify proxy creation was logged
-        assertTrue(factory.isProxy(proxyAddr));
-
-        //verify logging doesnt return false positives
-        address notProxy = 0xd2A49A27F3E68d9ab1973849eaA0BEC41A6592Ed;
-        assertTrue(!factory.isProxy(notProxy));
 
         //verify proxy ownership
         assertEq(proxy.owner(), address(this));
+        assertEq(proxy.factory(), address(factory));
     }
 
-    ///test 3 - build a proxy from DSProxyFactory (other owner) and verify logging
-    function test_DSProxyFactoryBuildProcOtherOwner() public {
-        address owner = address(0x123);
-        address payable proxyAddr = factory.build(owner);
-        assertTrue(proxyAddr != address(0));
-        proxy = DSProxy(proxyAddr);
-
-        uint codeSize;
-        assembly {
-            codeSize := extcodesize(proxyAddr)
-        }
-        //verify proxy was deployed successfully
-        assertTrue(codeSize != 0);
-
-        //verify proxy creation was logged
-        assertTrue(factory.isProxy(proxyAddr));
-
-        //verify proxy ownership
-        assertEq(proxy.owner(), owner);
+    function test_ProxyFactoryChangeOwnership() public {
+        assertEq(factory.owner(), address(this));
+        assertEq(proxy.owner(), address(this));
+        factory.setOwner(address(123));
+        assertEq(factory.owner(), address(123));
+        assertEq(proxy.owner(), address(123));
     }
 
-    ///test 4 - verify getting a cache
-    function test_DSProxyCacheAddr1() public {
-        DSProxy p = new DSProxy(address(cache));
-        assertTrue(address(p) != address(0));
-        address cacheAddr = address(p.cache());
-        assertTrue(cacheAddr == address(cache));
-        assertTrue(cacheAddr != address(0));
+    function test_ProxyFactoryChangeOwnershipButNotProxy() public {
+        assertEq(factory.owner(), address(this));
+        assertEq(proxy.owner(), address(this));
+        proxy.setOwner(address(456));
+        assertEq(factory.owner(), address(this));
+        assertEq(proxy.owner(), address(456));
+        factory.setOwner(address(123));
+        assertEq(factory.owner(), address(123));
+        assertEq(proxy.owner(), address(456));
     }
 
-    ///test 5 - verify setting a new cache
-    function test_DSProxyCacheAddr2() public {
-        DSProxy p = new DSProxy(address(cache));
-        assertTrue(address(p) != address(0));
-        address newCacheAddr = address(new DSProxyCache());
-        address oldCacheAddr = address(cache);
-        assertEq(address(p.cache()), oldCacheAddr);
-        assertTrue(p.setCache(newCacheAddr));
-        assertEq(address(p.cache()), newCacheAddr);
-        assertTrue(oldCacheAddr != newCacheAddr);
-    }
-
-    ///test 6 - execute an action through proxy and verify caching
-    function test_DSProxyExecute() public {
+    // execute an action through proxy and verify caching
+    function test_ProxyExecute() public {
         bytes memory data = abi.encodeWithSignature("getBytes32()");
 
-        //verify contract is not stored in cache
-        assertEq(cache.read(testCode), address(0));
+        address testContract = address(new TestContract());
 
         //deploy and call the contracts code
-        (address target, bytes memory response) = proxy.execute(testCode, data);
+        bytes memory response = proxy.execute(testContract, data);
 
         bytes32 response32;
 
@@ -166,27 +131,16 @@ contract DSProxyTest is DSTest {
 
         //verify we got correct response
         assertEq32(response32, bytes32("Hello"));
-
-        //verify contract is stored in cache
-        assertTrue(cache.read(testCode) != address(0));
-
-        //call the contracts code using target address
-        response = proxy.execute(target, data);
-
-        assembly {
-            response32 := mload(add(response, 32))
-        }
-
-        //verify we got correct response
-        assertEq32(response32, bytes32("Hello"));
     }
 
-    ///test 7 - execute an action through proxy which returns more than 1 value
-    function test_DSProxyExecute2Values() public {
+    // execute an action through proxy which returns more than 1 value
+    function test_ProxyExecute2Values() public {
         bytes memory data = abi.encodeWithSignature("getBytes32AndUint()");
 
+        address testContract = address(new TestContract());
+
         //deploy and call the contracts code
-        (, bytes memory response) = proxy.execute(testCode, data);
+        bytes memory response = proxy.execute(testContract, data);
 
         bytes32 response32;
         uint responseUint;
@@ -201,12 +155,14 @@ contract DSProxyTest is DSTest {
         assertEq(responseUint, uint(150));
     }
 
-    ///test 8 - execute an action through proxy which returns multiple values in a bytes32[] format
-    function test_DSProxyExecuteMultipleValues() public {
+    // execute an action through proxy which returns multiple values in a bytes32[] format
+    function test_ProxyExecuteMultipleValues() public {
         bytes memory data = abi.encodeWithSignature("getMultipleValues(uint256)", 10000);
 
+        address testContract = address(new TestContract());
+
         //deploy and call the contracts code
-        (, bytes memory response) = proxy.execute(testCode, data);
+        bytes memory response = proxy.execute(testContract, data);
 
         uint size;
         bytes32 response32;
@@ -225,12 +181,14 @@ contract DSProxyTest is DSTest {
         }
     }
 
-    ///test 9 - execute an action through proxy which returns a value not multiple of 32
-    function test_DSProxyExecuteNot32Multiple() public {
+    // execute an action through proxy which returns a value not multiple of 32
+    function test_ProxyExecuteNot32Multiple() public {
         bytes memory data = abi.encodeWithSignature("get48Bytes()");
 
+        address testContract = address(new TestContract());
+
         //deploy and call the contracts code
-        (, bytes memory response) = proxy.execute(testCode, data);
+        bytes memory response = proxy.execute(testContract, data);
 
         bytes memory test = new bytes(48);
         test = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
@@ -238,8 +196,8 @@ contract DSProxyTest is DSTest {
         assertEq0(response, test);
     }
 
-    ///test 10 - execute an action through proxy which reverts via solidity require
-    function test_DSProxyExecuteFailMethod() public {
+    // execute an action through proxy which reverts via solidity require
+    function test_ProxyExecuteFailMethod() public {
         address payable target = address(proxy);
         address testContract = address(new TestContract());
         bytes memory data = abi.encodeWithSignature("execute(address,bytes)", bytes32(uint(address(testContract))), abi.encodeWithSignature("fail()"));
@@ -275,8 +233,8 @@ contract DSProxyTest is DSTest {
         assertEq0(message, "Fail test case");
     }
 
-    ///test 11 - execute an action through proxy which reverts via a pure assembly function
-    function test_DSProxyExecuteFailMethodAssembly() public {
+    // execute an action through proxy which reverts via a pure assembly function
+    function test_ProxyExecuteFailMethodAssembly() public {
         address payable target = address(proxy);
         address testContract = address(new TestFullAssemblyContract());
         bytes memory data = abi.encodeWithSignature("execute(address,bytes)", bytes32(uint(address(testContract))), hex"");
@@ -298,16 +256,16 @@ contract DSProxyTest is DSTest {
         assertEq0(response, "Fail test case");
     }
 
-    ///test 12 - deposit ETH to Proxy
-    function test_DSProxyDepositETH() public {
+    // deposit ETH to Proxy
+    function test_ProxyDepositETH() public {
         assertEq(address(proxy).balance, 0);
         (bool success,) = address(proxy).call{value: 10}("");
         assertTrue(success);
         assertEq(address(proxy).balance, 10);
     }
 
-    ///test 13 - withdraw ETH from Proxy
-    function test_DSProxyWithdrawETH() public {
+    // withdraw ETH from Proxy
+    function test_ProxyWithdrawETH() public {
         (bool success,) = address(proxy).call{value: 10}("");
         assertTrue(success);
         assertEq(address(proxy).balance, 10);

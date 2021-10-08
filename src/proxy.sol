@@ -17,12 +17,13 @@
 
 pragma solidity ^0.6.12;
 
-contract DSProxy {
+contract Proxy {
     address public factory;
     address localOwner;
 
     modifier auth() {
-        msg.sender == owner();
+        require(msg.sender == owner(), "");
+        _;
     }
 
     constructor() public {
@@ -32,15 +33,15 @@ contract DSProxy {
     receive() external payable {
     }
 
-    function owner() public returns (address) {
+    function owner() public view returns (address) {
         if (localOwner == address(0)) {
-            return factory.owner();
+            return ProxyFactory(factory).owner();
         } else {
             return localOwner;
         }
     }
 
-    function setOwner(address owner_) auth {
+    function setOwner(address owner_) external auth {
         localOwner = owner_;
     }
 
@@ -71,26 +72,27 @@ contract DSProxy {
     }
 }
 
-contract DSProxyFactory {
+contract ProxyFactory {
     event Created(address indexed proxy);
     address public owner;
 
     modifier auth() {
-        msg.sender == owner();
+        require(msg.sender == owner, "");
+        _;
     }
 
     constructor() public {
         owner = msg.sender;
     }
 
-    function setOwner(address owner_) auth {
+    function setOwner(address owner_) external auth {
         owner = owner_;
     }
 
     // deploys a new proxy instance
     // sets custom owner of proxy
     function build() public returns (address payable proxy) {
-        proxy = address(new DSProxy());
+        proxy = address(new Proxy());
         emit Created(address(proxy));
     }
 }
