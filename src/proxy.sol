@@ -33,12 +33,8 @@ contract Proxy {
     receive() external payable {
     }
 
-    function owner() public view returns (address) {
-        if (localOwner == address(0)) {
-            return ProxyFactory(factory).owner();
-        } else {
-            return localOwner;
-        }
+    function owner() public view returns (address owner_) {
+        owner_ = localOwner == address(0) ? ProxyFactory(factory).owner() : localOwner;
     }
 
     function setOwner(address owner_) external auth {
@@ -89,8 +85,6 @@ contract ProxyFactory {
         owner = owner_;
     }
 
-    // deploys a new proxy instance
-    // sets custom owner of proxy
     function build() public returns (address payable proxy) {
         proxy = address(new Proxy());
         emit Created(address(proxy));
