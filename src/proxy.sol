@@ -22,9 +22,12 @@ contract Proxy {
     address localOwner;
 
     modifier auth() {
-        require(msg.sender == owner(), "");
+        require(msg.sender == owner(), "Proxy/not-owner");
         _;
     }
+
+    event Execute(address indexed target_, bytes data_);
+    event SetOwner(address indexed owner_);
 
     constructor() public {
         factory = msg.sender;
@@ -39,19 +42,15 @@ contract Proxy {
 
     function setOwner(address owner_) external auth {
         localOwner = owner_;
+        emit SetOwner(owner_);
     }
 
-    function execute(address _target, bytes memory _data)
-        public
-        auth
-        payable
-        returns (bytes memory response)
-    {
-        require(_target != address(0), "ds-proxy-target-address-required");
+    function execute(address target_, bytes memory data_) external auth payable returns (bytes memory response) {
+        require(target_ != address(0), "Proxy/target-address-required");
 
         // call contract in current context
         assembly {
-            let succeeded := delegatecall(sub(gas(), 5000), _target, add(_data, 0x20), mload(_data), 0, 0)
+            let succeeded := delegatecall(sub(gas(), 5000), target_, add(data_, 0x20), mload(data_), 0, 0)
             let size := returndatasize()
 
             response := mload(0x40)
@@ -65,17 +64,21 @@ contract Proxy {
                 revert(add(response, 0x20), size)
             }
         }
+
+        emit Execute(target_, data_);
     }
 }
 
 contract ProxyFactory {
-    event Created(address indexed proxy);
     address public owner;
 
     modifier auth() {
-        require(msg.sender == owner, "");
+        require(msg.sender == owner, "ProxyFactory/not-owner");
         _;
     }
+
+    event Created(address indexed proxy);
+    event SetOwner(address indexed owner_);
 
     constructor() public {
         owner = msg.sender;
@@ -83,6 +86,7 @@ contract ProxyFactory {
 
     function setOwner(address owner_) external auth {
         owner = owner_;
+        emit SetOwner(owner_);
     }
 
     function build() public returns (address payable proxy) {
