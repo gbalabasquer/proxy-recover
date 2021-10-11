@@ -277,6 +277,10 @@ contract ProxyTest is DSTest {
         assertEq(address(this).balance, myBalance + 5);
     }
 
+    function testFail_ProxyCreatedWithNoProperFactory() public {
+        new Proxy();
+    }
+
     receive() external payable {
     }
 }

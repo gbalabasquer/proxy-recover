@@ -30,6 +30,7 @@ contract Proxy {
     event SetOwner(address indexed owner_);
 
     constructor() public {
+        ProxyFactory(msg.sender).owner(); // It will fail if msg.sender doesn't have an owner
         factory = msg.sender;
     }
 
