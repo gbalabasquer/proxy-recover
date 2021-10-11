@@ -17,6 +17,10 @@
 
 pragma solidity ^0.6.12;
 
+interface ProxyOwnerRegistryLike {
+    function getOwner(address) external view returns (address);
+}
+
 contract Proxy {
     address public factory;
     address localOwner;
@@ -31,6 +35,7 @@ contract Proxy {
 
     constructor() public {
         factory = msg.sender;
+        localOwner = msg.sender;
     }
 
     receive() external payable {
@@ -71,14 +76,16 @@ contract Proxy {
 
 contract ProxyFactory {
     address public owner;
+    ProxyOwnerRegistryLike public registry;
 
     modifier auth() {
         require(msg.sender == owner, "ProxyFactory/not-owner");
         _;
     }
 
-    event Created(address indexed proxy);
+    event Created(address indexed proxy, address indexed proxyOwner);
     event SetOwner(address indexed owner_);
+    event SetRegistry(address indexed registry_);
 
     constructor() public {
         owner = msg.sender;
@@ -88,9 +95,19 @@ contract ProxyFactory {
         owner = owner_;
         emit SetOwner(owner_);
     }
+    
+    function setRegistry(address registry_) external auth {
+        registry = ProxyOwnerRegistryLike(registry_);
+        emit SetRegistry(registry_);
+    }
 
     function build() public returns (address payable proxy) {
         proxy = address(new Proxy());
-        emit Created(address(proxy));
+        address proxyOwner = registry.getOwner(proxy);
+        Proxy(proxy).setOwner(proxyOwner);
+        emit Created(
+            address(proxy),
+            proxyOwner != address(0) ? proxyOwner : owner
+        );
     }
 }

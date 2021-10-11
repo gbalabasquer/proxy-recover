@@ -19,6 +19,7 @@ pragma solidity ^0.6.12;
 
 import "ds-test/test.sol";
 import "./proxy.sol";
+import "./ProxyOwnerRegistry.sol";
 
 // Test Contract Used
 contract TestProxyActions {
@@ -66,11 +67,14 @@ contract TestProxyActionsWithdrawFunds {
 
 contract ProxyTest is DSTest {
     ProxyFactory factory;
+    ProxyOwnerRegistry registry;
     Proxy proxy;
 
     function setUp() public {
         factory = new ProxyFactory();
+        registry = new ProxyOwnerRegistry();
         assertEq(factory.owner(), address(this));
+        factory.setRegistry(address(registry));
         proxy = Proxy(factory.build());
     }
 
@@ -112,6 +116,13 @@ contract ProxyTest is DSTest {
         factory.setOwner(address(123));
         assertEq(factory.owner(), address(123));
         assertEq(proxy.owner(), address(456));
+    }
+
+    function test_ProxyFactoryBuildWithRegistryOwner() public {
+        // HEVM deterministic address
+        registry.setProxyOwner(0x566B72091192CCd7013AdF77E2a1b349564acC21, address(123));
+        address payable proxyAddr = factory.build();
+        assertEq(Proxy(proxyAddr).owner(), address(123));
     }
 
     // execute an action through proxy and verify caching
