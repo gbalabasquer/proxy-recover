@@ -17,7 +17,7 @@
 pragma solidity ^0.6.12;
 
 contract ProxyOwnerRegistry {
-    address owner;
+    address public owner;
     mapping (address => address) public registry;
 
     modifier auth() {

@@ -74,6 +74,7 @@ contract ProxyTest is DSTest {
         factory = new ProxyFactory();
         registry = new ProxyOwnerRegistry();
         assertEq(factory.owner(), address(this));
+        assertEq(registry.owner(), address(this));
         factory.setRegistry(address(registry));
         proxy = Proxy(factory.build());
     }

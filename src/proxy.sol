@@ -101,7 +101,7 @@ contract ProxyFactory {
         emit SetRegistry(registry_);
     }
 
-    function build() public returns (address payable proxy) {
+    function build() external returns (address payable proxy) {
         proxy = address(new Proxy());
         address proxyOwner = registry.getOwner(proxy);
         Proxy(proxy).setOwner(proxyOwner);
