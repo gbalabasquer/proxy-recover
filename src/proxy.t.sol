@@ -287,7 +287,12 @@ contract ProxyTest is DSTest {
 
 contract AddressesTest is DSTest {
     ProxyFactory factory;
-    address proxy;
+    address payable proxy;
+
+    // --- Nonce Trick ---
+    address factory_nonce;
+    address proxy_nonce;
+    uint256 nonce;
 
     function test_Addresses() public {
         assertEq(address(this), 0xdB33dFD3D61308C33C63209845DaD3e6bfb2c674, "non-matching-from-addr");
@@ -310,5 +315,35 @@ contract AddressesTest is DSTest {
         // (DSProxy #7,398)
         // We need to double check why this discrepancy in the nonce, by one can be due the DSProxyCache creation but the other one not sure
         // Anyway the important thing is we get the address we need
+    }
+
+    // --- Nonce Trick ---
+    // Compute Factory and Proxy addresses deterministically by hashing sender and nonces
+    // https://ethereum.stackexchange.com/a/47083/61489
+    function test_Addresses_Nonce() public {
+        assertEq(address(this), 0xdB33dFD3D61308C33C63209845DaD3e6bfb2c674, "non-matching-from-addr");
+
+        // the deployer in tests is a contract so nonces start from 1
+        for(uint256 i = 1; i <= type(uint256).max; i++) {
+            factory = new ProxyFactory();
+            factory_nonce = address(uint160(uint256(keccak256(abi.encodePacked(byte(0xd7), byte(0x94), address(this), byte(0x81), uint8(i))))));
+            nonce = i;
+            if (address(factory) == 0xA26e15C895EFc0616177B7c1e7270A4C7D51C997) break;
+        }
+        assertTrue(nonce == 234, "non-matching-factory-nonce");
+        assertEq(address(factory), factory_nonce, "non-match-factory-nonce-addr");
+        assertEq(address(factory), 0xA26e15C895EFc0616177B7c1e7270A4C7D51C997, "non-matching-factory");
+        assertEq(factory.owner(), address(this), "non-matching-owner");
+
+        for (uint256 i = 1; i <= type(uint256).max; i++) {
+            proxy = factory.build();
+            proxy_nonce = address(uint160(uint256(keccak256(abi.encodePacked(byte(0xd8), byte(0x94), address(factory), byte(0x82), uint16(i))))));
+            nonce = i;
+            if (proxy == 0x1CC7e8e35e67a3227f30F8caA001Ee896D0749eE) break;
+        }
+        assertEq(nonce, 7400, "non-matchig-proxy-nonce");
+        assertEq(proxy, proxy_nonce, "non-matching-proxy-nonce-addr");
+        assertEq(proxy, 0x1CC7e8e35e67a3227f30F8caA001Ee896D0749eE, "non-matching-proxy-addr");
+        assertEq(Proxy(proxy).owner(), factory.owner(), "proxy-owner-non-matching-factory-owner");
     }
 }
