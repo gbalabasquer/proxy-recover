@@ -91,7 +91,7 @@ contract ProxyFactory {
         emit SetOwner(owner_);
     }
 
-    function build() public returns (address payable proxy) {
+    function build() external returns (address payable proxy) {
         proxy = address(new Proxy());
         emit Created(address(proxy));
     }
