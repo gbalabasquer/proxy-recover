@@ -331,9 +331,9 @@ contract AddressesTest is DSTest {
             if (address(factory) == 0xA26e15C895EFc0616177B7c1e7270A4C7D51C997) break;
         }
         assertEq(nonce, 234, "non-matching-factory-nonce");
-        assertEq(address(factory), factory_nonce, "non-match-factory-nonce-addr");
-        assertEq(address(factory), 0xA26e15C895EFc0616177B7c1e7270A4C7D51C997, "non-matching-factory");
-        assertEq(factory.owner(), address(this), "non-matching-owner");
+        assertEq(address(factory), factory_nonce, "non-matching-factory-nonce-addr");
+        assertEq(address(factory), 0xA26e15C895EFc0616177B7c1e7270A4C7D51C997, "non-matching-factory-addr");
+        assertEq(factory.owner(), address(this), "non-matching-owner-addr");
 
         for (uint256 i = 1; i <= type(uint256).max; i++) {
             proxy = factory.build();
@@ -344,6 +344,6 @@ contract AddressesTest is DSTest {
         assertEq(nonce, 7400, "non-matchig-proxy-nonce");
         assertEq(proxy, proxy_nonce, "non-matching-proxy-nonce-addr");
         assertEq(proxy, 0x1CC7e8e35e67a3227f30F8caA001Ee896D0749eE, "non-matching-proxy-addr");
-        assertEq(Proxy(proxy).owner(), factory.owner(), "proxy-owner-non-matching-factory-owner");
+        assertEq(Proxy(proxy).owner(), factory.owner(), "proxy-owner-non-matching-factory-owner-addr");
     }
 }
