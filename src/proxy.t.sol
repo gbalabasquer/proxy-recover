@@ -330,7 +330,7 @@ contract AddressesTest is DSTest {
             nonce = i;
             if (address(factory) == 0xA26e15C895EFc0616177B7c1e7270A4C7D51C997) break;
         }
-        assertTrue(nonce == 234, "non-matching-factory-nonce");
+        assertEq(nonce, 234, "non-matching-factory-nonce");
         assertEq(address(factory), factory_nonce, "non-match-factory-nonce-addr");
         assertEq(address(factory), 0xA26e15C895EFc0616177B7c1e7270A4C7D51C997, "non-matching-factory");
         assertEq(factory.owner(), address(this), "non-matching-owner");
