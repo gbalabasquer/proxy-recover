@@ -38,7 +38,8 @@ contract Proxy {
     }
 
     function owner() public view returns (address owner_) {
-        owner_ = localOwner == address(0) ? ProxyFactory(factory).owner() : localOwner;
+        address localOwner_ = localOwner;
+        owner_ = localOwner_ != address(0) ? localOwner_ : ProxyFactory(factory).owner();
     }
 
     function setOwner(address owner_) external auth {
