@@ -284,3 +284,31 @@ contract ProxyTest is DSTest {
     receive() external payable {
     }
 }
+
+contract AddressesTest is DSTest {
+    ProxyFactory factory;
+    address proxy;
+
+    function test_Addresses() public {
+        assertEq(address(this), 0xdB33dFD3D61308C33C63209845DaD3e6bfb2c674, "non-matching-from-addr");
+
+        // This is in reality a EOA nonce but in this case it is represented as a contract
+        // then we start from 1 and not 0
+        for(uint256 i = 1; i <= 234; i++) {
+            factory = new ProxyFactory();
+        }
+        assertEq(address(factory), 0xA26e15C895EFc0616177B7c1e7270A4C7D51C997, "non-matching-factory-addr");
+        // https://etherscan.io/tx/0x0463c8655dcff6c7f0665d4b209321b476698ae6bdf8916ab8531dc34ea602e5 (nonce 234)
+
+        for(uint256 i = 1; i <= 7400; i++) {
+            proxy = factory.build();
+        }
+
+        assertEq(proxy, 0x1CC7e8e35e67a3227f30F8caA001Ee896D0749eE, "non-matching-proxy-addr");
+        // https://etherscan.io/vmtrace?txhash=0x169df3e591f7b88211c441e27a674b303871d29b77384b47fdc682c71b3e8523&type=parity
+        // Action [4]
+        // (DSProxy #7,398)
+        // We need to double check why this discrepancy in the nonce, by one can be due the DSProxyCache creation but the other one not sure
+        // Anyway the important thing is we get the address we need
+    }
+}
