@@ -295,7 +295,7 @@ contract User {
 
 contract AddressesTest is DSTest {
     ProxyFactory factory;
-    address payable proxy;
+    address proxy;
 
     // --- Nonce Trick ---
     address factory_nonce;
@@ -372,7 +372,7 @@ contract AddressesTest is DSTest {
         assertEq(nonce, 7400, "non-matchig-proxy-target-nonce");
         assertEq(proxy, proxy_nonce, "non-matching-proxy-nonce-target-addr");
         assertEq(proxy, 0x1CC7e8e35e67a3227f30F8caA001Ee896D0749eE, "non-matching-proxy-addr");
-        assertEq(Proxy(proxy).owner(), factory.owner(), "proxy-owner-non-matching-factory-owner-addr");
+        assertEq(Proxy(payable(proxy)).owner(), factory.owner(), "proxy-owner-non-matching-factory-owner-addr");
     }
 
     function test_recoverFunds() public {
