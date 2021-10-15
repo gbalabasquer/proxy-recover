@@ -349,7 +349,7 @@ contract AddressesTest is DSTest {
     function test_Addresses_Nonce() public {
         assertEq(address(this), 0xdB33dFD3D61308C33C63209845DaD3e6bfb2c674, "non-matching-from-addr");
 
-        // the deployer in tests is a contract so nonces start from 1
+        // the deployer in tests is a contract instead of a EOA so nonces start from 1 instead of 0
         for(uint256 i = 1; i <= type(uint256).max; i++) {
             factory = new ProxyFactory();
             factory_nonce = addrFromNonce(address(this), i);
@@ -374,7 +374,7 @@ contract AddressesTest is DSTest {
         assertEq(proxy, 0x1CC7e8e35e67a3227f30F8caA001Ee896D0749eE, "non-matching-proxy-addr");
         assertEq(Proxy(proxy).owner(), factory.owner(), "proxy-owner-non-matching-factory-owner-addr");
     }
-    
+
     function test_recoverFunds() public {
         payable(0x1CC7e8e35e67a3227f30F8caA001Ee896D0749eE).transfer(1 ether);
         assertEq(address(0x1CC7e8e35e67a3227f30F8caA001Ee896D0749eE).balance, 1 ether);
