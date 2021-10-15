@@ -297,6 +297,11 @@ contract AddressesTest is DSTest {
     ProxyFactory factory;
     address proxy;
 
+    // --- Nonce Trick ---
+    address factory_nonce;
+    address proxy_nonce;
+    uint256 nonce;
+
     function _buildFactory() internal {
         // This is in reality a EOA nonce but in this case it is represented as a contract
         // then we start from 1 and not 0
@@ -309,6 +314,18 @@ contract AddressesTest is DSTest {
         for(uint256 i = 1; i <= 7400; i++) {
             proxy = factory.build();
         }
+    }
+
+    // --- Nonce Trick ---
+    // Compute Factory and Proxy addresses deterministically by hashing sender and nonces
+    // Inspired by https://ethereum.stackexchange.com/a/47083/61489
+    function addrFromNonce(address _origin, uint256 _nonce) internal pure returns (address) {
+        if(_nonce == 0x00)     return address(uint160(uint256(keccak256(abi.encodePacked(byte(0xd6), byte(0x94), _origin, byte(0x80))))));
+        if(_nonce <= 0x7f)     return address(uint160(uint256(keccak256(abi.encodePacked(byte(0xd6), byte(0x94), _origin, uint8(_nonce))))));
+        if(_nonce <= 0xff)     return address(uint160(uint256(keccak256(abi.encodePacked(byte(0xd7), byte(0x94), _origin, byte(0x81), uint8(_nonce))))));
+        if(_nonce <= 0xffff)   return address(uint160(uint256(keccak256(abi.encodePacked(byte(0xd8), byte(0x94), _origin, byte(0x82), uint16(_nonce))))));
+        if(_nonce <= 0xffffff) return address(uint160(uint256(keccak256(abi.encodePacked(byte(0xd9), byte(0x94), _origin, byte(0x83), uint24(_nonce))))));
+        return address(uint160(uint256(keccak256(abi.encodePacked(byte(0xda), byte(0x94), _origin, byte(0x84), uint32(_nonce)))))); // up to 2^32 nonces
     }
 
     function test_Addresses() public {
@@ -327,6 +344,35 @@ contract AddressesTest is DSTest {
         // (DSProxy #7,398)
         // We need to double check why this discrepancy in the nonce, by one can be due the DSProxyCache creation but the other one not sure
         // Anyway the important thing is we get the address we need
+    }
+
+    function test_Addresses_Nonce() public {
+        assertEq(address(this), 0xdB33dFD3D61308C33C63209845DaD3e6bfb2c674, "non-matching-from-addr");
+
+        // the deployer in tests is a contract instead of a EOA so nonces start from 1 instead of 0
+        for(uint256 i = 1; i <= type(uint256).max; i++) {
+            factory = new ProxyFactory();
+            factory_nonce = addrFromNonce(address(this), i);
+            assertEq(address(factory), factory_nonce, "non-matching-factory-nonce-addr");
+            nonce = i;
+            if (address(factory) == 0xA26e15C895EFc0616177B7c1e7270A4C7D51C997) break;
+        }
+        assertEq(nonce, 234, "non-matching-factory-target-nonce");
+        assertEq(address(factory), factory_nonce, "non-matching-factory-nonce-target-addr");
+        assertEq(address(factory), 0xA26e15C895EFc0616177B7c1e7270A4C7D51C997, "non-matching-factory-addr");
+        assertEq(factory.owner(), address(this), "non-matching-owner-addr");
+
+        for (uint256 i = 1; i <= type(uint256).max; i++) {
+            proxy = factory.build();
+            proxy_nonce = addrFromNonce(address(factory), i);
+            assertEq(proxy, proxy_nonce, "non-matching-proxy-nonce-addr");
+            nonce = i;
+            if (proxy == 0x1CC7e8e35e67a3227f30F8caA001Ee896D0749eE) break;
+        }
+        assertEq(nonce, 7400, "non-matchig-proxy-target-nonce");
+        assertEq(proxy, proxy_nonce, "non-matching-proxy-nonce-target-addr");
+        assertEq(proxy, 0x1CC7e8e35e67a3227f30F8caA001Ee896D0749eE, "non-matching-proxy-addr");
+        assertEq(Proxy(payable(proxy)).owner(), factory.owner(), "proxy-owner-non-matching-factory-owner-addr");
     }
 
     function test_recoverFunds() public {
