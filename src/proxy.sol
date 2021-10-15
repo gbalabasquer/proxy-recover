@@ -96,3 +96,17 @@ contract ProxyFactory {
         emit Created(address(proxy));
     }
 }
+
+contract Deployer {
+    address immutable public factory;
+
+    constructor(address factory_) public {
+        factory = factory_;
+    }
+
+    function deploy(uint256 num) external {
+        for (uint256 i=0; i < num; i++){
+            ProxyFactory(factory).build();
+        }
+    }
+}

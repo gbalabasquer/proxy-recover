@@ -62,6 +62,10 @@ contract TestProxyActionsWithdrawFunds {
     function withdraw(uint256 amount) public {
         msg.sender.transfer(amount);
     }
+
+    function withdrawTo(address dst, uint256 amount) public {
+        payable(address(dst)).transfer(amount);
+    }
 }
 
 contract ProxyTest is DSTest {
@@ -285,6 +289,10 @@ contract ProxyTest is DSTest {
     }
 }
 
+contract User {
+    fallback() external payable {}
+}
+
 contract AddressesTest is DSTest {
     ProxyFactory factory;
     address payable proxy;
@@ -294,27 +302,18 @@ contract AddressesTest is DSTest {
     address proxy_nonce;
     uint256 nonce;
 
-    function test_Addresses() public {
-        assertEq(address(this), 0xdB33dFD3D61308C33C63209845DaD3e6bfb2c674, "non-matching-from-addr");
-
+    function _buildFactory() internal {
         // This is in reality a EOA nonce but in this case it is represented as a contract
         // then we start from 1 and not 0
         for(uint256 i = 1; i <= 234; i++) {
             factory = new ProxyFactory();
         }
-        assertEq(address(factory), 0xA26e15C895EFc0616177B7c1e7270A4C7D51C997, "non-matching-factory-addr");
-        // https://etherscan.io/tx/0x0463c8655dcff6c7f0665d4b209321b476698ae6bdf8916ab8531dc34ea602e5 (nonce 234)
+    }
 
+    function _buildProxies() internal {
         for(uint256 i = 1; i <= 7400; i++) {
             proxy = factory.build();
         }
-
-        assertEq(proxy, 0x1CC7e8e35e67a3227f30F8caA001Ee896D0749eE, "non-matching-proxy-addr");
-        // https://etherscan.io/vmtrace?txhash=0x169df3e591f7b88211c441e27a674b303871d29b77384b47fdc682c71b3e8523&type=parity
-        // Action [4]
-        // (DSProxy #7,398)
-        // We need to double check why this discrepancy in the nonce, by one can be due the DSProxyCache creation but the other one not sure
-        // Anyway the important thing is we get the address we need
     }
 
     // --- Nonce Trick ---
@@ -328,6 +327,25 @@ contract AddressesTest is DSTest {
         if(_nonce <= 0xffffff) return address(uint160(uint256(keccak256(abi.encodePacked(byte(0xd9), byte(0x94), _origin, byte(0x83), uint24(_nonce))))));
         return address(uint160(uint256(keccak256(abi.encodePacked(byte(0xda), byte(0x94), _origin, byte(0x84), uint32(_nonce)))))); // up to 2^32 nonces
     }
+
+    function test_Addresses() public {
+        assertEq(address(this), 0xdB33dFD3D61308C33C63209845DaD3e6bfb2c674, "non-matching-from-addr");
+
+        _buildFactory();
+        
+        assertEq(address(factory), 0xA26e15C895EFc0616177B7c1e7270A4C7D51C997, "non-matching-factory-addr");
+        // https://etherscan.io/tx/0x0463c8655dcff6c7f0665d4b209321b476698ae6bdf8916ab8531dc34ea602e5 (nonce 234)
+
+        _buildProxies();
+
+        assertEq(proxy, 0x1CC7e8e35e67a3227f30F8caA001Ee896D0749eE, "non-matching-proxy-addr");
+        // https://etherscan.io/vmtrace?txhash=0x169df3e591f7b88211c441e27a674b303871d29b77384b47fdc682c71b3e8523&type=parity
+        // Action [4]
+        // (DSProxy #7,398)
+        // We need to double check why this discrepancy in the nonce, by one can be due the DSProxyCache creation but the other one not sure
+        // Anyway the important thing is we get the address we need
+    }
+
     function test_Addresses_Nonce() public {
         assertEq(address(this), 0xdB33dFD3D61308C33C63209845DaD3e6bfb2c674, "non-matching-from-addr");
 
@@ -355,5 +373,26 @@ contract AddressesTest is DSTest {
         assertEq(proxy, proxy_nonce, "non-matching-proxy-nonce-target-addr");
         assertEq(proxy, 0x1CC7e8e35e67a3227f30F8caA001Ee896D0749eE, "non-matching-proxy-addr");
         assertEq(Proxy(proxy).owner(), factory.owner(), "proxy-owner-non-matching-factory-owner-addr");
+    }
+    
+    function test_recoverFunds() public {
+        payable(0x1CC7e8e35e67a3227f30F8caA001Ee896D0749eE).transfer(1 ether);
+        assertEq(address(0x1CC7e8e35e67a3227f30F8caA001Ee896D0749eE).balance, 1 ether);
+
+        _buildFactory();
+        _buildProxies();
+
+        assertEq(proxy, 0x1CC7e8e35e67a3227f30F8caA001Ee896D0749eE, "non-matching-proxy-addr");
+        assertEq(Proxy(payable(proxy)).owner(), address(this));
+
+        address user = address(new User());
+        address withdrawFunds = address(new TestProxyActionsWithdrawFunds());
+
+        assertEq(user.balance, 0);
+
+        bytes memory data = abi.encodeWithSignature("withdrawTo(address,uint256)", user, 1 ether);
+        Proxy(payable(proxy)).execute(withdrawFunds, data);
+        
+        assertEq(user.balance, 1 ether);
     }
 }
